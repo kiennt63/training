@@ -3,10 +3,10 @@ import torch.nn as nn
 from utils import compute_iou
 
 class YoloLoss(nn.Module):
-    def __init__(self, split_size, num_boxes, num_classes):
+    def __init__(self, grid_size, num_boxes, num_classes):
         super(YoloLoss, self).__init__()
         self.mse = nn.MSELoss(reduction='sum')
-        self.s = split_size
+        self.s = grid_size
         self.b = num_boxes
         self.c = num_classes
         self.lambda_coord = 5
