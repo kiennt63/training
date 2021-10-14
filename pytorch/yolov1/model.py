@@ -68,17 +68,16 @@ class Yolov1(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def create_fcs(self, grid_size, num_boxes, num_classes):
+    def create_fcs(self, grid_size, num_bboxes, num_classes):
         return nn.Sequential(
             nn.Flatten(),
             nn.Linear(1024 * grid_size * grid_size, 4096),
             nn.Dropout(p=0.5),
             nn.LeakyReLU(0.1),
-            nn.Linear(4096, grid_size * grid_size * (num_classes + num_boxes * 5))
+            nn.Linear(4096, grid_size * grid_size * (num_classes + num_bboxes * 5))
         )
 
 
 if __name__ == '__main__':
-    model = Yolov1(grid_size=7, num_boxes=2, num_classes=20)
+    model = Yolov1(grid_size=7, num_bboxes=2, num_classes=20)
     x = torch.randn(32, 3, 448, 448)
-    print(model(x).shape)

@@ -4,6 +4,8 @@ import os
 import pandas as pd
 from PIL import Image
 
+import math
+
 class VOCDataset(Dataset):
     def __init__(self, csv_file, img_dir, label_dir, grid_size, 
                         num_bboxes, num_classes, transforms=None):
@@ -19,7 +21,7 @@ class VOCDataset(Dataset):
         return len(self.annotations)
     
     def __getitem__(self, index):
-        label_path = os.path.join(self.label_dir, self.annotations.iloc(index, 1))
+        label_path = os.path.join(self.label_dir, self.annotations.iloc[index, 1])
         bboxes = []
         with open(label_path) as f:
             for label in f.readlines():
@@ -28,20 +30,21 @@ class VOCDataset(Dataset):
                     for x in label.replace('\n', '').split() 
                 ]
                 bboxes.append([class_label, x, y, width, height])
-        img_path = os.path.join(self.img_dir, self.annotations.iloc(index, 0))
+        img_path = os.path.join(self.img_dir, self.annotations.iloc[index, 0])
         image = Image.open(img_path)
-        bboxes = torch.tensor(bboxes)
-        
+        # with torch.no_grad():
         if self.transforms:
             image, bboxes = self.transforms(image, bboxes)
 
         label = torch.zeros((self.grid_size, self.grid_size, self.num_classes + 5))
 
         for bbox in bboxes:
-            bbox = bbox.tolist()
-            row = torch.floor(bbox[2] / (1 / self.grid_size))
-            col = torch.floor(bbox[1] / (1 / self.grid_size))
-            label[row][col][bbox[0]] = 1
+            # bbox = bbox.tolist()
+            row = math.floor(bbox[2] / (1 / self.grid_size))
+            col = math.floor(bbox[1] / (1 / self.grid_size))
+            row = int(row)
+            col = int(col)
+            label[row][col][int(bbox[0])] = 1
             label[row][col][20] = 1
             label[row][col][21] = self.grid_size * bbox[1] - col    # x relative to grid
             label[row][col][22] = self.grid_size * bbox[2] - row    # y relative to grid

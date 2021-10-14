@@ -3,11 +3,11 @@ import torch.nn as nn
 from utils import compute_iou
 
 class YoloLoss(nn.Module):
-    def __init__(self, grid_size, num_boxes, num_classes):
+    def __init__(self, grid_size, num_bboxes, num_classes):
         super(YoloLoss, self).__init__()
         self.mse = nn.MSELoss(reduction='sum')
         self.s = grid_size
-        self.b = num_boxes
+        self.b = num_bboxes
         self.c = num_classes
         self.lambda_coord = 5
         self.lambda_no_obj = 0.5
@@ -17,7 +17,7 @@ class YoloLoss(nn.Module):
 
         iou_bbox1 = compute_iou(prediction[..., 21:25], target[..., 21:25]) # N * S * S * 4
         iou_bbox2 = compute_iou(prediction[..., 26:30], target[..., 21:25]) # N * S * S * 4
-        ious = torch.cat(iou_bbox1.unsqueeze(0), iou_bbox2.unsqueeze(0), dim=0) # 2 * N * S * S * 4
+        ious = torch.cat([iou_bbox1.unsqueeze(0), iou_bbox2.unsqueeze(0)], dim=0) # 2 * N * S * S * 4
         iou_max, best_box = torch.max(ious, dim=0) # find index of the best bbox
         exist_box = target[..., 20:21]
 
@@ -46,7 +46,7 @@ class YoloLoss(nn.Module):
         # No object
         no_object_loss = self.mse(
             torch.flatten((1 - exist_box) * prediction[..., 20:21], start_dim=1),
-            torch.flatten((1 - exist_box) * target_obj_score)
+            torch.flatten((1 - exist_box) * target_obj_score, start_dim=1)
         )
 
         no_object_loss += self.mse(
@@ -67,4 +67,6 @@ class YoloLoss(nn.Module):
             self.lambda_no_obj * no_object_loss +
             class_loss
         )
+
+        return loss
         
