@@ -62,18 +62,16 @@ def main():
     
     stream = cuda.Stream()
     start_time = time.time()
+    host_input = np.array(model_loading.preprocess_img('turkish_coffee.webp').numpy(), dtype=np.float32, order='C')
+    cuda.memcpy_htod_async(device_input, host_input, stream)
     for i in range(10000):
-        host_input = np.array(model_loading.preprocess_img('turkish_coffee.webp').numpy(), dtype=np.float32, order='C')
-        cuda.memcpy_htod_async(device_input, host_input, stream)
-
-        context.execute_async(bindings=[int(device_input), int(device_output)], stream_handle=stream.handle)
-        cuda.memcpy_dtoh_async(host_output, device_output, stream)
-        stream.synchronize()
-        
-        output_data = torch.Tensor(host_output).reshape(engine.max_batch_size, output_shape[1])
-        model_loading.postprocess(output_data)
+        context.execute(bindings=[int(device_input), int(device_output)])
     end_time = time.time()
-
+    cuda.memcpy_dtoh_async(host_output, device_output, stream)
+    stream.synchronize()
+    
+    output_data = torch.Tensor(host_output).reshape(engine.max_batch_size, output_shape[1])
+    model_loading.postprocess(output_data)
     print('Time taken: {} seconds'.format(end_time - start_time))
 
 if __name__ == '__main__':

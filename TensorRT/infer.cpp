@@ -199,7 +199,6 @@ void deserializeEngine(const std::string& engine_path, TRTUniquePtr<nvinfer1::IC
 
     engine.reset(runtime->deserializeCudaEngine(trt_model_stream.data(), size, nullptr));
     context.reset(engine->createExecutionContext());
-    std::cout << "PASSED" << std::endl;
 }
 
 int main(int argc, char * argv[])
@@ -250,21 +249,31 @@ int main(int argc, char * argv[])
         std::cerr << "ERROR: expected at least one input and one output for network\n";
         return -1;
     }
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
+    // preprocess input data
+    preprocessImage(image_path, (float*) buffers[0], input_dims[0]);
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+    cudaEvent_t start, end;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start, stream);
     for (size_t i = 0; i < 10000; ++i)
     {
-        // preprocess input data
-        preprocessImage(image_path, (float*) buffers[0], input_dims[0]);
-
         // inference
-        context->enqueue(batch_size, buffers.data(), 0, nullptr);
-
-        // postprocess results
-        postprocessResults((float*) buffers[1], output_dims[0], batch_size, argv[3]);
+        context->enqueue(batch_size, &buffers[0], stream, nullptr);
     }
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    std::cout << "Time taken: " << duration.count() / 1000.0f << " seconds" << std::endl;
+    cudaEventRecord(end, stream);
+
+    cudaEventSynchronize(end);
+
+    float timeTaken;
+    cudaEventElapsedTime(&timeTaken, start, end);
+    // auto stop = std::chrono::high_resolution_clock::now();
+    // postprocess results
+    postprocessResults((float*) buffers[1], output_dims[0], batch_size, argv[3]);
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << "Time taken: " << timeTaken << " seconds" << std::endl;
     
 
     for (void* buf : buffers)
