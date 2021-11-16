@@ -1,33 +1,47 @@
-# from utils import iou_width_height
 import torch
+import cv2
+import numpy as np
 
-# import config
+import config
+from model import YOLOv3
+from utils import (
+    mean_average_precision,
+    cells_to_bboxes,
+    get_evaluation_bboxes,
+    load_checkpoint,
+    check_class_accuracy,
+    get_loaders,
+    plot_couple_examples
+)
 
-def iou_width_height(boxes1, boxes2):
-    """
-    Parameters:
-        boxes1 (tensor): width and height of the first bounding boxes
-        boxes2 (tensor): width and height of the second bounding boxes
-    Returns:
-        tensor: Intersection over union of the corresponding boxes
-    """
-    intersection = torch.min(boxes1[..., 0], boxes2[..., 0]) * torch.min(
-        boxes1[..., 1], boxes2[..., 1]
+torch.backends.cudnn.benchmark = True
+
+def test(model, image):
+    out_scale_0, out_scale_1, out_scale_2 = model(image)
+    out_wrt_img_0 = cells_to_bboxes(out_scale_0, config.ANCHORS[0], self.config.S[0])
+    out_wrt_img_1 = cells_to_bboxes(out_scale_1, config.ANCHORS[1], self.config.S[1])
+    out_wrt_img_2 = cells_to_bboxes(out_scale_2, config.ANCHORS[2], self.config.S[2])
+    print(out_wrt_img_0)
+
+
+def main():
+    model = YOLOv3(num_classes=20).to(config.DEVICE)
+    checkpoint = torch.load('./my_checkpoint.pth.tar', map_location=config.DEVICE)
+    model.load_state_dict(checkpoint['state_dict'])
+    # model.eval()
+
+    train_loader, test_loader, train_eval_loader = get_loaders(
+        train_csv_path=config.DATASET + "/train.csv",
+        test_csv_path=config.DATASET + "/test.csv"
     )
-    union = (
-        boxes1[..., 0] * boxes1[..., 1] + boxes2[..., 0] * boxes2[..., 1] - intersection
+
+    pred_boxes, true_boxes = get_evaluation_bboxes(
+        test_loader,
+        model,
+        iou_threshold=config.NMS_IOU_THRESH,
+        anchors=config.ANCHORS,
+        threshold=config.CONF_THRESHOLD,
     )
-    return intersection / union
 
-ANCHORS = [
-    [(0.28, 0.22), (0.38, 0.48), (0.9, 0.78)],
-    [(0.07, 0.15), (0.15, 0.11), (0.14, 0.29)],
-    [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
-]  # Note these have been rescaled to be between [0, 1]
-
-# print(iou_width_height(torch.tensor([0.4, 0.5]), torch.tensor(ANCHORS)))
-
-a = torch.tensor(ANCHORS)
-b = torch.tensor([[0.5, 0.5]])
-
-print(torch.min(a, b).shape)
+if __name__ == '__main__':
+    main()

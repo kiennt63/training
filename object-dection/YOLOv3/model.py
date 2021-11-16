@@ -75,12 +75,8 @@ class scale_prediction(nn.Module):
         super().__init__()
 
         self.prediction = nn.Sequential(
-            # Added
-            residual_block(in_channels, use_residual=False, num_repeats=1),
-            conv_block(in_channels, in_channels // 2, kernel_size=1),
-            # Original 
-            conv_block(in_channels // 2, in_channels, kernel_size=3, padding=1),
-            conv_block(in_channels, 3 * (num_classes + 5), batch_norm=False, kernel_size=1)
+            conv_block(in_channels, 2 * in_channels, kernel_size=3, padding=1),
+            conv_block(2 * in_channels, 3 * (num_classes + 5), batch_norm=False, kernel_size=1)
         )
 
         self.num_classes = num_classes
@@ -153,11 +149,13 @@ class YOLOv3(nn.Module):
                 )
 
             elif module == "S":
-                layers.append(
-                    scale_prediction(
-                        in_channels, num_classes=self.num_classes
-                    )
-                )
+                layers += [
+                    residual_block(in_channels, use_residual=False, num_repeats=1),
+                    conv_block(in_channels, in_channels // 2, kernel_size=1),
+                    scale_prediction(in_channels // 2, num_classes=self.num_classes)
+                ]
+
+                in_channels = in_channels // 2
                 
             elif module == "U":
                 layers.append(nn.Upsample(scale_factor=2))

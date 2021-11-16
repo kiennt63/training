@@ -96,12 +96,15 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="corners"):
     """
 
     assert type(bboxes) == list
-
+    # for box in bboxes:
+    #     print('Box values: {} {} {} {} {} {}'.format(box[0], box[1], box[2], box[3], box[4], box[5]))
     bboxes = [box for box in bboxes if box[1] > threshold]
     bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True)
     bboxes_after_nms = []
-
+    # i = 0
     while bboxes:
+        # print('Processing index {}'.format(i))
+        # i += 1
         chosen_box = bboxes.pop(0)
 
         bboxes = [
@@ -287,11 +290,14 @@ def get_evaluation_bboxes(
     device="cuda",
 ):
     # make sure model is in eval before get bboxes
+    # threshold = 0.5
     model.eval()
     train_idx = 0
     all_pred_boxes = []
     all_true_boxes = []
     for batch_idx, (x, labels) in enumerate(tqdm(loader)):
+        # if batch_idx == 1:
+        #     break
         x = x.to(device)
 
         with torch.no_grad():
@@ -313,6 +319,8 @@ def get_evaluation_bboxes(
             labels[2], anchor, S=S, is_preds=False
         )
 
+
+
         for idx in range(batch_size):
             nms_boxes = non_max_suppression(
                 bboxes[idx],
@@ -321,6 +329,7 @@ def get_evaluation_bboxes(
                 box_format=box_format,
             )
 
+            # print('Batch size: {}'.format(batch_size))
             for nms_box in nms_boxes:
                 all_pred_boxes.append([train_idx] + nms_box)
 
